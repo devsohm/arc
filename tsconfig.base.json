@@ -1,0 +1,22 @@
+{
+	"compilerOptions": {
+		"target": "ES2024",
+		"module": "NodeNext",
+		"strict": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"erasableSyntaxOnly": true,
+		"verbatimModuleSyntax": true,
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"declaration": true,
+		"declarationMap": true,
+		"sourceMap": true,
+		"inlineSources": true,
+		"inlineSourceMap": false,
+		"resolveJsonModule": true,
+		"rewriteRelativeImportExtensions": true,
+		"types": ["node"],
+		"skipLibCheck": true
+	}
+}
