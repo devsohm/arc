@@ -1,4 +1,4 @@
-import type { AttachedReplicatedState } from "../shared/state/replicated-state.ts";
+import type { ConversationView } from "./view.ts";
 import type { Context } from "../shared/context/index.ts";
 import type { JsonValue } from "../shared/json.ts";
 import type {
@@ -45,8 +45,7 @@ import type {
 	Tx,
 	WatchHandle,
 } from "../types.ts";
-import type { TaskGraph, TaskGraphWatch } from "./task-graph.ts";
-import type { ConversationView } from "./view.ts";
+import type { TaskGraphWatch } from "./task-graph.ts";
 import type { UsageState } from "./usage.ts";
 
 export type ModelRef = { readonly provider: string; readonly modelId: string };
@@ -399,6 +398,8 @@ export type EnvTarget = {
 	readonly read: DocumentReader;
 };
 export type HarnessOptions<T extends ToolRegistration = ToolRegistration> = {
+	/** Open without writing or recovering tasks. */
+	readonly readOnly?: boolean;
 	/** Root adapter for task and submission spans, events and metrics. */
 	readonly telemetry?: TelemetryContext;
 	readonly models: Models | (() => Models);
@@ -431,7 +432,6 @@ export interface Conversation {
 	fork(at: EntryId, options: ConversationCreateOptions, context: Context): Promise<Conversation>;
 	abort(context: Context, options?: ConversationAbortOptions): Promise<void>;
 	waitForIdle(context: Context): Promise<void>;
-	viewState(context: Context): Promise<AttachedReplicatedState<ConversationView>>;
 	watch(context: Context): Promise<ConversationWatch>;
 }
 export interface Harness extends Session {
@@ -456,6 +456,5 @@ export interface Harness extends Session {
 	waitForTask<R>(id: TaskId<R>, context: Context): Promise<SettledTask<R>>;
 	waitForIdle(context: Context): Promise<void>;
 	usage(context: Context): Promise<UsageState>;
-	taskGraph(context: Context): Promise<AttachedReplicatedState<TaskGraph>>;
 	watchTaskGraph(context: Context): Promise<TaskGraphWatch>;
 }

@@ -873,6 +873,7 @@ export function calculateCost(model: AnyModel, usage: Usage): Usage["cost"] {
 	const long = usage.cacheWrite1h ?? 0;
 	usage.cost.cacheWrite = (rates.cacheWrite * (usage.cacheWrite - long) + rates.input * 2 * long) / 1_000_000;
 	usage.cost.total = usage.cost.input + usage.cost.output + usage.cost.cacheRead + usage.cost.cacheWrite;
+	usage.cost.totalFromProvider = false;
 	return usage.cost;
 }
 const levels: ModelThinkingLevel[] = ["off", "minimal", "low", "medium", "high", "xhigh", "max"];

@@ -26,6 +26,7 @@ Arc is a terminal agent and a toolkit of independent libraries. Start with the t
 - [Application contracts](../packages/cli/docs/spec.md)
 - [Durable tutorial](../packages/durable/docs/tutorial.md)
 - [Durable contracts](../packages/durable/docs/spec.md)
+- [Host Durable in a Cloudflare Durable Object](durable-objects.md)
 - [Connect a UI to Durable](../packages/tui/docs/durable-connection.md)
 
 Each package README links to its detailed specification. Public TypeScript declarations describe exact signatures. Examples and tests illustrate behavior but do not prove every possible input.

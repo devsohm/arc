@@ -30,6 +30,15 @@ export const APP_KEYBINDINGS = {
 	"app.session.new": { defaultKeys: [], description: "New session" },
 	"app.session.tree": { defaultKeys: [], description: "Select conversation" },
 	"app.session.fork": { defaultKeys: [], description: "Fork conversation" },
+	"app.session.delete": { defaultKeys: "ctrl+d", description: "Delete selected session" },
+	"app.session.rename": { defaultKeys: "ctrl+r", description: "Rename selected session" },
+	"app.session.togglePath": { defaultKeys: "ctrl+p", description: "Show session paths" },
+	"app.session.toggleSort": { defaultKeys: "ctrl+s", description: "Change session sorting" },
+	"app.session.toggleNamedFilter": { defaultKeys: "ctrl+n", description: "Show named sessions" },
+	"app.session.deleteNoninvasive": {
+		defaultKeys: "ctrl+backspace",
+		description: "Delete session when search is empty",
+	},
 	"app.session.resume": { defaultKeys: [], description: "Reopen session" },
 	"app.tree.foldOrUp": { defaultKeys: ["ctrl+left", "alt+left"], description: "Fold branch or move to its parent" },
 	"app.tree.unfoldOrDown": {

@@ -1,9 +1,8 @@
-import { type AttachedReplicatedState, replicatedState } from "../shared/state/replicated-state.ts";
 import { type Context } from "../shared/context/index.ts";
 import { type JsonValue } from "../shared/json.ts";
 import { withoutAbortSignal } from "../shared/context/index.ts";
 import { applyImmutable, type NonEmptyPath, type Op, type Path } from "../shared/state/delta/index.ts";
-import { CommittedStateSource, CommittedWatch } from "../session/observation.ts";
+import { CommittedWatch } from "../session/observation.ts";
 import { contained, type SessionImpl } from "../session/session.ts";
 import type {
 	CommitPublication,
@@ -38,7 +37,7 @@ export type ViewObserver = {
 		publication: CommitPublication,
 		context: Context,
 	): void;
-	closeSession(failure: { readonly error: unknown } | undefined): void;
+	end(failure: { readonly error: unknown } | undefined): void;
 };
 type Mount = {
 	value: ConversationView;
@@ -77,7 +76,7 @@ export class ConversationViews {
 			for (const mount of this.#mounts.values())
 				for (const observer of [...mount.observers])
 					contained(
-						() => observer.closeSession(session.failure),
+						() => observer.end(session.failure),
 						(error) => this.report(error),
 					);
 			this.#mounts.clear();
@@ -85,19 +84,6 @@ export class ConversationViews {
 	}
 	report(error: unknown): void {
 		this.#session.report(error);
-	}
-	async state(id: ConversationId, context: Context): Promise<AttachedReplicatedState<ConversationView>> {
-		const { observer, detach } = await this.attach(
-			id,
-			(value, release) => new CommittedStateSource<ConversationView>(value, release),
-			context,
-		);
-		try {
-			return replicatedState(observer, { onError: (error) => this.report(error) });
-		} catch (error) {
-			detach();
-			throw error;
-		}
 	}
 	async watch(id: ConversationId, context: Context): Promise<WatchHandle<ConversationView>> {
 		const { observer } = await this.attach(

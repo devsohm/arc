@@ -95,6 +95,7 @@ export interface UICapabilities {
 }
 
 export interface ApplicationUI {
+	sessions?(request: import("../sessions/session-actions.ts").SessionPickerRequest): Promise<string | undefined>;
 	tree?(
 		items: readonly import("../sessions/navigation.ts").NavigationItem[],
 		options: { readonly initialValue?: string; readonly filter: import("../sessions/navigation.ts").TreeFilter },

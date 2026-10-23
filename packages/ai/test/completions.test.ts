@@ -392,3 +392,26 @@ describe("Chat Completions", () => {
 		}
 	});
 });
+
+it("reads billed totals from OpenRouter streams without applying them to other providers", async () => {
+	for (const provider of ["openrouter", "local"]) {
+		const result = await stream({ ...model, provider }, context, {
+			apiKey: "offline",
+			fetch: async () =>
+				response([
+					{
+						...chunk({ content: "ok" }, "stop"),
+						usage: {
+							prompt_tokens: 12,
+							completion_tokens: 3,
+							cost: 0.42,
+							is_byok: false,
+						},
+					},
+				]),
+		}).result();
+		expect(result.stopReason).toBe("stop");
+		expect(result.usage.cost.totalFromProvider).toBe(provider === "openrouter");
+		expect(result.usage.cost.total).toBeCloseTo(provider === "openrouter" ? 0.42 : 0.000048);
+	}
+});

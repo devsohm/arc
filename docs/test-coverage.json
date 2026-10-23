@@ -323,6 +323,14 @@
 				{
 					"behavior": "archive install/uninstall ownership and executable behavior",
 					"tests": ["packages/cli/test/install.test.ts"]
+				},
+				{
+					"behavior": "saved-session search, scope, rename, deletion and lock protection",
+					"tests": [
+						"packages/cli/test/session-actions.test.ts",
+						"packages/cli/test/session-selector.test.ts",
+						"packages/cli/test/resume-ui.test.ts"
+					]
 				}
 			]
 		}

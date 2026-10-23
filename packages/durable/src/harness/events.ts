@@ -162,7 +162,7 @@ export async function watchEvents(harness: Harness, id: ConversationId, context:
 					const events = translate(id, before, after, ops, publication, held);
 					if (events.length) watch.advance(events, [], context);
 				},
-				closeSession: (failure: { readonly error: unknown } | undefined) => watch.closeSession(failure),
+				end: (failure: { readonly error: unknown } | undefined) => watch.end(failure),
 			};
 		},
 		context,

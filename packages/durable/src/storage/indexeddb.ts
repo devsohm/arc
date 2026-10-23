@@ -320,10 +320,10 @@ export class IndexedDbStorage implements T.Storage {
 			return idFromNumber<Id>(state.nextId);
 		});
 	}
-	async commit(writes: readonly T.StorageWrite[], _context: Context): Promise<T.Seq> {
+	async commit(writes: readonly T.StorageWrite[], adopt: (seq: T.Seq) => void, _context: Context): Promise<T.Seq> {
 		this.#assertOpen();
 		const edits = mutations(writes);
-		return this.#transaction(stores, "readwrite", async (tx) => {
+		const seq = await this.#transaction(stores, "readwrite", async (tx) => {
 			const state = await get<Metadata>(tx, "meta", "state");
 			if (!state) throw new Error("Durable IndexedDB metadata is missing");
 			const seq = seqFromNumber(state.nextSeq);
@@ -376,59 +376,51 @@ export class IndexedDbStorage implements T.Storage {
 					case "conversation":
 						await claim(write.value.id, write.type);
 						await result(
-							tx
-								.objectStore("conversations")
-								.add({
-									id: write.value.id,
-									...(write.value.owner
-										? { ownerConversationId: write.value.owner.conversationId, ownerTaskId: write.value.owner.taskId }
-										: {}),
-									record: write.value,
-								} satisfies ConversationRow),
+							tx.objectStore("conversations").add({
+								id: write.value.id,
+								...(write.value.owner
+									? { ownerConversationId: write.value.owner.conversationId, ownerTaskId: write.value.owner.taskId }
+									: {}),
+								record: write.value,
+							} satisfies ConversationRow),
 						);
 						break;
 					case "entry":
 						await claim(write.value.id, write.type);
 						await result(
-							tx
-								.objectStore("entries")
-								.add({
-									id: write.value.id,
-									conversationId: write.value.conversationId,
-									...(write.value.head === undefined ? {} : { headConversationId: write.value.conversationId }),
-									commitSeq: seq,
-									record: write.value,
-								} satisfies EntryRow),
+							tx.objectStore("entries").add({
+								id: write.value.id,
+								conversationId: write.value.conversationId,
+								...(write.value.head === undefined ? {} : { headConversationId: write.value.conversationId }),
+								commitSeq: seq,
+								record: write.value,
+							} satisfies EntryRow),
 						);
 						break;
 					case "task":
 						await claim(write.value.id, write.type);
 						await result(
-							tx
-								.objectStore("tasks")
-								.put({
-									id: write.value.id,
-									conversationId: write.value.conversationId,
-									kind: write.value.kind,
-									status: write.value.state.status,
-									abortRequested: write.value.abortRequested ? 1 : 0,
-									background: write.value.background ? 1 : 0,
-									record: write.value,
-								} satisfies TaskRow),
+							tx.objectStore("tasks").put({
+								id: write.value.id,
+								conversationId: write.value.conversationId,
+								kind: write.value.kind,
+								status: write.value.state.status,
+								abortRequested: write.value.abortRequested ? 1 : 0,
+								background: write.value.background ? 1 : 0,
+								record: write.value,
+							} satisfies TaskRow),
 						);
 						break;
 					case "submission":
 						await claim(write.value.id, write.type);
 						await result(
-							tx
-								.objectStore("submissions")
-								.put({
-									id: write.value.id,
-									conversationId: write.value.conversationId,
-									...(write.value.requestId === undefined ? {} : { requestId: write.value.requestId }),
-									status: write.value.status,
-									record: write.value,
-								} satisfies SubmissionRow),
+							tx.objectStore("submissions").put({
+								id: write.value.id,
+								conversationId: write.value.conversationId,
+								...(write.value.requestId === undefined ? {} : { requestId: write.value.requestId }),
+								status: write.value.status,
+								record: write.value,
+							} satisfies SubmissionRow),
 						);
 						break;
 				}
@@ -464,15 +456,13 @@ export class IndexedDbStorage implements T.Storage {
 					if (content.kind === "base" && currentOnly(record))
 						await result(tx.objectStore("document_revisions").delete(range([id])));
 					await result(
-						tx
-							.objectStore("document_revisions")
-							.add({
-								documentId: id,
-								seq,
-								kind: content.kind,
-								version: content.version,
-								content: content.kind === "base" ? content.value : content.ops,
-							} satisfies Revision),
+						tx.objectStore("document_revisions").add({
+							documentId: id,
+							seq,
+							kind: content.kind,
+							version: content.version,
+							content: content.kind === "base" ? content.value : content.ops,
+						} satisfies Revision),
 					);
 				}
 				if (edit.retire) {
@@ -494,6 +484,8 @@ export class IndexedDbStorage implements T.Storage {
 			await result(tx.objectStore("meta").put({ key: "state", nextId, nextSeq: seq + 1 } satisfies Metadata));
 			return seq;
 		});
+		adopt(seq);
+		return seq;
 	}
 	#documentRow(record: T.DocumentRecord): DocumentRow {
 		return {

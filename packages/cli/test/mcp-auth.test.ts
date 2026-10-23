@@ -158,7 +158,7 @@ test("MCP terminal login negotiates PKCE, persists and refreshes tokens, reopens
 	});
 	let reopened: Awaited<ReturnType<typeof createApplication>> | undefined;
 	try {
-		await vi.waitFor(async () => expect(await screen()).toContain("Enter send"));
+		await vi.waitFor(async () => expect(await screen()).toContain("/ commands"));
 		send("/mcp");
 		await vi.waitFor(async () => expect(await screen()).toContain("MCP servers"));
 		send("fixture");
@@ -209,12 +209,12 @@ test("cancelling MCP browser login dismisses the panel and closes its callback l
 	const running = runInteractive(app, { terminal, signal: stop.signal });
 	const screen = async () => (await terminal.screen()).join("\n");
 	try {
-		await vi.waitFor(async () => expect(await screen()).toContain("Enter send"));
+		await vi.waitFor(async () => expect(await screen()).toContain("/ commands"));
 		terminal.input("/mcp login fixture");
 		terminal.input("\r");
 		await vi.waitFor(async () => expect(await screen()).toContain("Authorize MCP fixture in your browser"));
 		terminal.input("\x1b");
-		await vi.waitFor(async () => expect(await screen()).toContain("Enter send"));
+		await vi.waitFor(async () => expect(await screen()).toContain("/ commands"));
 		if (!callback) throw new Error("Callback missing");
 		await expect(fetch(callback)).rejects.toThrow();
 		expect((await app.snapshot()).agent.tools.map((t) => t.name)).not.toContain("mcp_fixture_echo");

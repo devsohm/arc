@@ -171,9 +171,8 @@
 		"@arc/codemode": "0.1.0-rc.1",
 		"@arc/telemetry": "0.1.0-rc.1",
 		"@silvia-odwyer/photon": "0.3.3",
-		"diff": "8.0.4",
-		"typebox": "1.3.27",
-		"esbuild": "0.28.2"
+		"diff": "9.0.0",
+		"typebox": "1.4.3"
 	},
 	"engines": {
 		"node": ">=22.19.0"

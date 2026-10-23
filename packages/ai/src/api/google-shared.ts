@@ -197,6 +197,7 @@ export function mapStopReason(reason: FinishReason): StopReason {
 		case "STOP":
 			return "stop";
 		case "MAX_TOKENS":
+		case "CONTINUATION":
 			return "length";
 		case "BLOCKLIST":
 		case "PROHIBITED_CONTENT":
@@ -222,7 +223,7 @@ export function mapStopReason(reason: FinishReason): StopReason {
 	}
 }
 export function mapStopReasonString(reason: string): StopReason {
-	return reason === "STOP" ? "stop" : reason === "MAX_TOKENS" ? "length" : "error";
+	return reason === "STOP" ? "stop" : reason === "MAX_TOKENS" || reason === "CONTINUATION" ? "length" : "error";
 }
 export function retryGoogleRequest<T>(
 	request: () => Promise<T>,

@@ -514,7 +514,7 @@ test("AbortSignal stops the UI, removes handlers, and restores the previous full
 		await result;
 		terminal.dispose();
 	});
-	await vi.waitFor(async () => expect((await terminal.screen()).join("\n")).toContain("Enter send"));
+	await vi.waitFor(async () => expect((await terminal.screen()).join("\n")).toContain("/ commands"));
 	controller.abort();
 	await result;
 	expect(stop).toHaveBeenCalledOnce();
@@ -659,8 +659,8 @@ test("terminal applies and reloads configured application/editor keys and retain
 		await result;
 		terminal.dispose();
 	});
-	await vi.waitFor(async () => expect((await terminal.screen()).join("\n")).toContain("Ctrl+S send"));
-	expect((await terminal.screen()).join("\n")).toContain("Ctrl+Y tools");
+	await vi.waitFor(async () => expect((await terminal.screen()).join("\n")).toContain("Ctrl+Y more"));
+	expect((await terminal.screen()).join("\n")).toContain("Ctrl+Y more");
 	terminal.input("/thinking high");
 	terminal.input("\x13");
 	await vi.waitFor(async () => expect((await app.snapshot()).agent.thinkingLevel).toBe("high"));
@@ -669,14 +669,14 @@ test("terminal applies and reloads configured application/editor keys and retain
 	terminal.input("\x13");
 	await vi.waitFor(async () => {
 		const text = (await terminal.screen()).join("\n");
-		expect(text).toContain("Ctrl+W tools");
-		expect(text).toContain("Enter send");
+		expect(text).toContain("Ctrl+W more");
+		expect(text).toContain("/ commands");
 	});
 	await writeFile(path, JSON.stringify({ "app.tools.expand": "invalid" }));
 	terminal.input("/reload");
 	terminal.input("\r");
 	await vi.waitFor(async () => expect((await terminal.screen()).join("\n")).toContain("Invalid keys"));
-	expect((await terminal.screen()).join("\n")).toContain("Ctrl+W tools");
+	expect((await terminal.screen()).join("\n")).toContain("Ctrl+W more");
 	terminal.input("/hotkeys");
 	terminal.input("\r");
 	await vi.waitFor(async () => expect((await terminal.screen()).join("\n")).toContain("ctrl+w: Expand tool output"));
@@ -747,7 +747,7 @@ test("settings opens a keyboard menu and commits changes through the shared appl
 	terminal.input("\r");
 	await vi.waitFor(async () => expect((await app.snapshot()).settings?.toolExecution).toBe("sequential"));
 	terminal.input("\x1b");
-	await vi.waitFor(async () => expect((await terminal.screen()).join("\n")).toContain("Enter send"));
+	await vi.waitFor(async () => expect((await terminal.screen()).join("\n")).toContain("/ commands"));
 	terminal.input("/settings toolExecution parallel");
 	terminal.input("\r");
 	await vi.waitFor(async () => expect((await app.snapshot()).settings?.toolExecution).toBe("parallel"));

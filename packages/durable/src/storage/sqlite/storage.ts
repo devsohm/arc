@@ -86,7 +86,7 @@ export class SqliteStorage implements T.Storage {
 		if (!Number.isSafeInteger(this.#nextId)) throw new Error("ID space is exhausted");
 		return idFromNumber<RecordId>(this.#nextId++);
 	}
-	async commit(writes: readonly T.StorageWrite[], _context: Context): Promise<T.Seq> {
+	async commit(writes: readonly T.StorageWrite[], adopt: (seq: T.Seq) => void, _context: Context): Promise<T.Seq> {
 		this.#open();
 		const actions = this.#actions(writes);
 		let nextId = this.#nextId;
@@ -112,6 +112,7 @@ export class SqliteStorage implements T.Storage {
 			return seq;
 		});
 		this.#nextId = Math.max(this.#nextId, nextId);
+		adopt(seq);
 		return seq;
 	}
 	async #record<Value>(db: SqliteExecutor, table: string, id: number): Promise<Value | undefined> {

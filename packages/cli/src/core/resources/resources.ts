@@ -100,7 +100,7 @@ async function skillFiles(directory: string, visited = new Set<string>()): Promi
 	return found;
 }
 
-const moduleSuffixes = [".ts", ".mts", ".tsx", ".mjs", ".js"];
+const moduleSuffixes = [".ts", ".mts", ".mjs", ".js"];
 
 async function extensionFiles(directory: string): Promise<string[]> {
 	const found: string[] = [];

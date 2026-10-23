@@ -1,6 +1,6 @@
 # Load extension files
 
-The Node adapter loads trusted JavaScript or TypeScript modules into an existing Durable registry. It uses esbuild to compile TypeScript. It does not type-check modules. Use your project's TypeScript check before loading them.
+The Node adapter loads trusted JavaScript or TypeScript modules into an existing Durable registry. It uses Node's built-in TypeScript stripping. It does not type-check modules. Use your project's TypeScript check before loading them.
 
 Relative imports follow the extension file. Installed dependencies resolve through Node. If an extension outside the application directory cannot resolve an `@arc/*` package, the loader resolves it from the host. Shared package imports, including `@arc/ai/models`, keep the host module instance. CommonJS extension modules are not supported.
 
@@ -49,7 +49,7 @@ Pass extension and tool definitions to conversation configuration. Durable persi
 
 Calling `load` again creates a fresh module generation. Relative ESM imports receive the same generation. Bare package imports retain Node's normal cache and resolution. This preserves shared package identities. File URLs remain based on the original location, so relative assets still work.
 
-Use `.ts`, `.mts`, `.tsx`, `.mjs`, or `.js` in an ESM package. CommonJS extension modules and relative CommonJS dependencies are unsupported. Third-party packages may still use CommonJS through ordinary bare imports. Changes inside a bare package require a process restart.
+Use `.ts`, `.mts`, `.mjs`, or `.js`. The loader treats `.ts` and `.mts` as ESM. JavaScript files follow Node's ESM rules. TSX, enums, runtime namespaces, parameter properties, and other TypeScript syntax that requires generated JavaScript are unsupported. Compile those extensions to JavaScript before loading them. Node does not read `tsconfig.json` or strip TypeScript inside `node_modules`; published packages should provide JavaScript. CommonJS extension modules and relative CommonJS dependencies are unsupported. Third-party packages may still use CommonJS through ordinary bare imports. Changes inside a bare package require a process restart.
 
 Import or registry-validation failures leave the previous definition installed. Registry listeners run after publication. If a listener throws, `load` rejects but the new definition remains published. The loader records ownership so it can still remove that definition later.
 

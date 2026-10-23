@@ -202,7 +202,9 @@ export async function runInteractive(
 				activeTheme.bold(activeTheme.fg("accent", "Arc")) +
 					activeTheme.fg(
 						"muted",
-						` · /help for commands\n${shortcut("tui.input.submit", "Enter")} send · ${shortcut("tui.input.newLine", "Shift+Enter")} newline · ${shortcut("app.exit", "Ctrl+D")} exit · ${shortcut("app.tools.expand", "Ctrl+O")} tools · ${shortcut("app.thinking.toggle", "Ctrl+T")} thinking`,
+						display.toolsExpanded
+							? `\n${shortcut("app.interrupt", "Esc")} interrupt · ${shortcut("app.clear", "Ctrl+C")} clear · ${shortcut("app.exit", "Ctrl+D")} exit when empty\n${shortcut("app.thinking.cycle", "Shift+Tab")} thinking level · ${shortcut("app.model.select", "Ctrl+L")} model · ${shortcut("app.thinking.toggle", "Ctrl+T")} show thinking\n/ commands · ! bash · !! bash outside model context · ${shortcut("app.message.followUp", "Alt+Enter")} follow-up`
+							: ` · ${shortcut("app.interrupt", "Esc")} interrupt · ${shortcut("app.clear", "Ctrl+C")}/${shortcut("app.exit", "Ctrl+D")} clear/exit · / commands · ! bash · ${shortcut("app.tools.expand", "Ctrl+O")} more`,
 					),
 				1,
 				0,

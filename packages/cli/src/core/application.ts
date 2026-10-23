@@ -1,3 +1,5 @@
+import { SessionInfo } from "./sessions/info.ts";
+import { savedSessions, removeSavedSession, renameSavedSession } from "./sessions/session-actions.ts";
 import { VirtualModels } from "./providers/virtual-models.ts";
 import { CacheWarmer } from "./providers/cache-warmer.ts";
 import { observeProviders } from "./providers/provider-events.ts";
@@ -33,7 +35,6 @@ import {
 	AgentDoc,
 	DEFAULT_RETRY_POLICY,
 	AssistantEntry,
-	defineDoc,
 	Harness,
 	InboxDoc,
 	LiveDoc,
@@ -49,11 +50,10 @@ import {
 	type AgentEvent,
 	type AgentEventStream,
 	type AgentChange,
-	type AttachedReplicatedState,
+	type WatchHandle,
 	type Context,
 	type Conversation,
 	type ConversationView,
-	type ConversationId,
 	type TaskGraph,
 	type Cursor,
 	type HarnessOptions,
@@ -169,13 +169,6 @@ function mutableModels(models: Models): models is MutableModels {
 		typeof models.clearProviders === "function"
 	);
 }
-const SessionInfo = defineDoc<{ name: string; conversationId?: ConversationId; parentSession?: string }>({
-	kind: "arc.session",
-	scope: "session",
-	version: 1,
-	initial: () => ({ name: "" }),
-	checkpointWhen: () => false,
-});
 export interface ApplicationOptions {
 	readonly extensionArgs?: readonly string[];
 	readonly mode?: ApplicationMode;
@@ -336,13 +329,11 @@ class ApplicationRuntime implements Application {
 	set #runtime(value: Runtime) {
 		this.#opened = value;
 	}
-	#view: AttachedReplicatedState<ConversationView> | undefined;
+	#view: WatchHandle<ConversationView> | undefined;
 	#runtimeEvents: AgentEventStream | undefined;
-	#taskGraph: AttachedReplicatedState<TaskGraph> | undefined;
+	#taskGraph: WatchHandle<TaskGraph> | undefined;
 	#taskOwner: Harness | undefined;
-	#unsubscribeTasks: (() => void) | undefined;
 	#showTasks = false;
-	#unsubscribe: (() => void) | undefined;
 	#unsubscribeUsage: (() => void) | undefined;
 	#usageOwner: Harness | undefined;
 	#usageTotals: Promise<import("@arc/durable").UsageState> | undefined;
@@ -714,18 +705,16 @@ class ApplicationRuntime implements Application {
 		}
 	}
 	#detachTasks(): void {
-		this.#unsubscribeTasks?.();
-		this.#unsubscribeTasks = undefined;
-		this.#taskGraph?.dispose();
+		void this.#taskGraph?.stop();
 		this.#taskGraph = undefined;
 		this.#taskOwner = undefined;
 	}
 	async #attachTasks(): Promise<void> {
 		this.#detachTasks();
 		if (!this.#showTasks) return;
-		this.#taskGraph = await this.harness.taskGraph(this.context);
+		this.#taskGraph = await this.harness.watchTaskGraph(this.context);
 		this.#taskOwner = this.harness;
-		this.#unsubscribeTasks = this.#taskGraph.subscribe(() => this.#scheduleRefresh());
+		this.#taskGraph.start(async () => this.#scheduleRefresh());
 	}
 
 	async #attach(): Promise<void> {
@@ -733,11 +722,10 @@ class ApplicationRuntime implements Application {
 		this.#epoch++;
 		await this.#runtimeEvents?.stop();
 		this.#runtimeEvents = undefined;
-		this.#unsubscribe?.();
-		this.#view?.dispose();
+		await this.#view?.stop();
 		this.#view = undefined;
-		this.#view = await this.conversation.viewState(this.context);
-		this.#unsubscribe = this.#view.subscribe(() => this.#scheduleRefresh());
+		this.#view = await this.conversation.watch(this.context);
+		this.#view.start(async () => this.#scheduleRefresh());
 		if (this.#usageOwner !== this.harness) {
 			this.#unsubscribeUsage?.();
 			this.#usageOwner = this.harness;
@@ -2188,9 +2176,7 @@ class ApplicationRuntime implements Application {
 			const old = this.#runtime;
 			await this.#event("onSessionShutdown", reason);
 			this.#epoch++;
-			this.#unsubscribe?.();
-			this.#unsubscribe = undefined;
-			this.#view?.dispose();
+			await this.#view?.stop();
 			this.#view = undefined;
 			this.#state = undefined;
 			try {
@@ -2715,15 +2701,35 @@ class ApplicationRuntime implements Application {
 				if (!file) {
 					const sessions = await listSessions(this.#home, this.cwd);
 					if (!this.ui.supported) return { message: sessions.map((session) => session.path).join("\n") };
-					file =
-						(await this.ui.select(
-							"Resume session",
-							sessions.map((session) => ({
-								value: session.path,
-								label: session.path,
-								description: new Date(session.modified).toISOString(),
-							})),
-						)) ?? "";
+					if (this.ui.sessions) {
+						file =
+							(await this.ui.sessions({
+								current: this.#runtime.file,
+								load: (scope) =>
+									savedSessions(
+										this.#home,
+										this.cwd,
+										scope,
+										this.#runtime.file ? { path: this.#runtime.file, name: this.#state?.sessionName } : undefined,
+									),
+								remove: (path) => removeSavedSession(this.#home, path, this.#runtime.file),
+								rename: async (path, name) => {
+									if (this.#runtime.file && resolve(path) === resolve(this.#runtime.file))
+										await this.#setSessionName(name.trim());
+									else await renameSavedSession(this.#home, path, name);
+								},
+							})) ?? "";
+					} else {
+						file =
+							(await this.ui.select(
+								"Resume session",
+								sessions.map((session) => ({
+									value: session.path,
+									label: session.path,
+									description: new Date(session.modified).toISOString(),
+								})),
+							)) ?? "";
+					}
 					if (!file) return {};
 				}
 				const targetSessionFile = resolve(this.cwd, file);
@@ -3174,8 +3180,7 @@ class ApplicationRuntime implements Application {
 		this.#runtimeEvents = undefined;
 		if (this.#opened) await this.#event("onSessionShutdown", "quit");
 		this.#epoch++;
-		this.#unsubscribe?.();
-		this.#view?.dispose();
+		await this.#view?.stop();
 		this.#detachTasks();
 		this.#listeners.clear();
 		this.#unsubscribeUsage?.();

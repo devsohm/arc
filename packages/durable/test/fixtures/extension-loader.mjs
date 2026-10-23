@@ -15,7 +15,7 @@ try {
 	const entry = join(directory, "extension.ts");
 	const helper = join(directory, "helper.ts");
 	const write = async (value) => {
-		await writeFile(helper, `export enum Version { current = ${value} }`);
+		await writeFile(helper, `export const Version: { current: number } = { current: ${value} };`);
 		await writeFile(
 			entry,
 			`
@@ -45,6 +45,27 @@ try {
 	await write(1);
 	const first = await loader.load(entry);
 	assert.equal(registry.snapshot().extension("worker"), first);
+	// Native stripping refuses syntax that needs generated JavaScript.
+	await writeFile(entry, "enum Choice { value } export default { name: 'worker' };");
+	await assert.rejects(loader.load(entry), { code: "ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX" });
+	assert.equal(registry.snapshot().extension("worker"), first);
+	for (const suffix of ["mts", "mjs", "js"]) {
+		const path = join(directory, `native.${suffix}`);
+		await writeFile(
+			path,
+			suffix === "mts"
+				? `type Name = string; const name: Name = "native-${suffix}"; export default { name };`
+				: `export default { name: "native-${suffix}" };`,
+		);
+		const loaded = await loader.load(path);
+		assert.equal(registry.snapshot().extension(`native-${suffix}`), loaded);
+		assert.equal(await loader.unload(path), true);
+		assert.equal(registry.snapshot().extension(`native-${suffix}`), undefined);
+		assert.equal(await loader.unload(path), false);
+	}
+	const tsx = join(directory, "native.tsx");
+	await writeFile(tsx, "export default <span />;");
+	await assert.rejects(loader.load(tsx), { code: "ERR_UNKNOWN_FILE_EXTENSION" });
 	await writeFile(entry, "this is not TypeScript !!");
 	await assert.rejects(loader.load(entry));
 	assert.equal(registry.snapshot().extension("worker"), first);

@@ -63,7 +63,7 @@ it("allocates unique IDs across clients, preserves counters after reopening and 
 		const ids = await Promise.all(Array.from({ length: 40 }, (_, index) => (index % 2 ? one : two).mintId<EntryId>()));
 		expect(new Set(ids).size).toBe(40);
 		expect([...ids].sort((a, b) => a - b)).toEqual(Array.from({ length: 40 }, (_, index) => index + 2));
-		await one.commit([{ type: "conversation", value: { id: ROOT_CONVERSATION_ID } }], context);
+		await one.commit([{ type: "conversation", value: { id: ROOT_CONVERSATION_ID } }], () => {}, context);
 		expect(await two.conversation(ROOT_CONVERSATION_ID, context)).toEqual({ id: ROOT_CONVERSATION_ID });
 	} finally {
 		await one.close(context);
@@ -88,11 +88,14 @@ it("rolls back early writes and the sequence when a later document command fails
 					{ type: "entry", value: { id, conversationId: ROOT_CONVERSATION_ID, kind: "text" } },
 					{ type: "document.retire", id: absent },
 				],
+				() => {},
 				context,
 			),
 		).rejects.toThrow();
 		expect(await storage.entry(id, context)).toBeUndefined();
-		expect(await storage.commit([{ type: "conversation", value: { id: ROOT_CONVERSATION_ID } }], context)).toBe(1);
+		expect(
+			await storage.commit([{ type: "conversation", value: { id: ROOT_CONVERSATION_ID } }], () => {}, context),
+		).toBe(1);
 	} finally {
 		await storage.close(context);
 	}
@@ -102,16 +105,18 @@ it("returns a descending page without reading every fork ancestor", async () => 
 	const storage = await IndexedDbStorage.open("paged-ancestry", { indexedDB: new IDBFactory() });
 	try {
 		let conversation = ROOT_CONVERSATION_ID;
-		await storage.commit([{ type: "conversation", value: { id: conversation } }], context);
+		await storage.commit([{ type: "conversation", value: { id: conversation } }], () => {}, context);
 		for (let index = 0; index < 20; index++) {
 			const at = await storage.mintId<EntryId>();
 			await storage.commit(
 				[{ type: "entry", value: { id: at, conversationId: conversation, kind: "point" } }],
+				() => {},
 				context,
 			);
 			const next = await storage.mintId<import("../src/types.ts").ConversationId>();
 			await storage.commit(
 				[{ type: "conversation", value: { id: next, parent: { conversationId: conversation, at } } }],
+				() => {},
 				context,
 			);
 			conversation = next;
@@ -119,6 +124,7 @@ it("returns a descending page without reading every fork ancestor", async () => 
 		const ids = await Promise.all(Array.from({ length: 3 }, () => storage.mintId<EntryId>()));
 		await storage.commit(
 			ids.map((id) => ({ type: "entry", value: { id, conversationId: conversation, kind: "recent" } })),
+			() => {},
 			context,
 		);
 		const reads = vi.spyOn(IDBObjectStore.prototype, "get");

@@ -10,7 +10,7 @@ import {
 	type TelemetryCarrier,
 } from "@arc/telemetry";
 import type { ExecutionEnv } from "../env/index.ts";
-import { errorMessage } from "../errors.ts";
+import { errorMessage, ReadOnlySession } from "../errors.ts";
 import type { SessionImpl } from "../session/session.ts";
 import type { Transaction } from "../session/transaction.ts";
 import type { Timers } from "../timers.ts";
@@ -91,6 +91,7 @@ export function blockedSubject(task: StoredTask): BlockedSubject {
 export type SchedulerOutcome = Extract<TaskOutcome<JsonValue>, { readonly status: "faulted" | "orphaned" }>;
 export type InvocationBinding = { readonly signal: AbortSignal; check(): void };
 export type TaskSchedulerOptions = {
+	readonly readOnly?: boolean;
 	readonly telemetry?: HarnessOptions["telemetry"];
 	readonly session: SessionImpl;
 	readonly storage: Storage;
@@ -244,6 +245,7 @@ export class TaskScheduler {
 			for (const records of groups)
 				for (const task of records) {
 					this.#track(task);
+					if (this.#options.readOnly) continue;
 					this.#resumed.add(task.id);
 					if (task.abandonOnRestart) this.#abandoned.add(task.id);
 					if (task.state.status === "running") {
@@ -256,6 +258,7 @@ export class TaskScheduler {
 					}
 				}
 		}, context);
+		if (this.#options.readOnly) return;
 		for (const task of parked)
 			this.#options.report(
 				new Error(
@@ -271,6 +274,7 @@ export class TaskScheduler {
 		this.#scheduleWake();
 	}
 	resume(): void {
+		if (this.#options.readOnly) throw new ReadOnlySession("running tasks");
 		this.#enabled = true;
 		this.#due();
 		this.#kick();
@@ -371,6 +375,7 @@ export class TaskScheduler {
 		}
 	}
 	wake(): Wake {
+		if (this.#options.readOnly) return { active: false };
 		const now = this.#options.now();
 		let active = this.#runs.size > 0 || this.#reconcileCount > 0 || this.#hasReconcileWork();
 		let at: number | undefined, snapshot: RegistrySnapshot | undefined;
@@ -403,7 +408,7 @@ export class TaskScheduler {
 		return { active, ...(at === undefined ? {} : { at }) };
 	}
 	#scheduleWake(): void {
-		if (this.#wakeQueued || this.#closing) return;
+		if (this.#options.readOnly || this.#wakeQueued || this.#closing) return;
 		this.#wakeQueued = true;
 		queueMicrotask(() => {
 			this.#wakeQueued = false;
@@ -639,7 +644,7 @@ export class TaskScheduler {
 		return this.#cascade || this.#holders.size > 0 || this.#failFast.size > 0;
 	}
 	#reconcileSoon(): void {
-		if (this.#reconcileQueued || this.#closing) return;
+		if (this.#options.readOnly || this.#reconcileQueued || this.#closing) return;
 		this.#reconcileQueued = true;
 		queueMicrotask(() => void this.#reconcile());
 	}

@@ -1,9 +1,8 @@
-import { type AttachedReplicatedState, replicatedState } from "../shared/state/replicated-state.ts";
 import { type Context } from "../shared/context/index.ts";
 import { type JsonValue } from "../shared/json.ts";
 import { BACKGROUND_CONTEXT, withoutAbortSignal } from "../shared/context/index.ts";
 import { applyImmutable, type Op } from "../shared/state/delta/index.ts";
-import { CommittedStateSource, CommittedWatch } from "../session/observation.ts";
+import { CommittedWatch } from "../session/observation.ts";
 import { contained, type SessionImpl } from "../session/session.ts";
 import type {
 	CommitPublication,
@@ -42,7 +41,7 @@ export type TaskGraphBlocking = {
 	readonly subscribeBlocked: (listener: () => void) => () => void;
 };
 type StoredTask = TaskRecord<JsonValue, JsonValue, JsonValue>;
-type Observer = CommittedStateSource<TaskGraph> | CommittedWatch<TaskGraph>;
+type Observer = CommittedWatch<TaskGraph>;
 type Mount = { value: TaskGraph; observers: Set<Observer>; records: Map<string, BlockedSubject> };
 
 export class TaskGraphView {
@@ -63,23 +62,11 @@ export class TaskGraphView {
 			this.#closed = true;
 			for (const observer of [...(this.#mount?.observers ?? [])])
 				contained(
-					() => observer.closeSession(session.failure),
+					() => observer.end(session.failure),
 					(error) => session.report(error),
 				);
 			this.#mount = undefined;
 		});
-	}
-	async state(context: Context): Promise<AttachedReplicatedState<TaskGraph>> {
-		const { observer, detach } = await this.#attach(
-			(value, release) => new CommittedStateSource<TaskGraph>(value, release),
-			context,
-		);
-		try {
-			return replicatedState(observer, { onError: (error) => this.#session.report(error) });
-		} catch (error) {
-			detach();
-			throw error;
-		}
 	}
 	async watch(context: Context): Promise<TaskGraphWatch> {
 		const { observer } = await this.#attach(

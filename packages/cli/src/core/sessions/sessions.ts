@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readdir, stat, realpath, mkdtemp, cp, rename, rm, chmod } from "node:fs/promises";
+import { mkdir, readdir, lstat, realpath, mkdtemp, cp, rename, rm, chmod } from "node:fs/promises";
 import { dirname, join, resolve, basename } from "node:path";
 import lockfile from "proper-lockfile";
 
@@ -26,10 +26,15 @@ export async function listSessions(home: string, cwd: string): Promise<SessionLo
 			.filter((name) => /\.(sqlite|jsonl)$/.test(name))
 			.map(async (name) => {
 				const path = join(directory, name);
-				return { path, modified: (await stat(path)).mtimeMs };
+				const entry = await lstat(path);
+				if (entry.isSymbolicLink() || !(name.endsWith(".sqlite") ? entry.isFile() : entry.isDirectory()))
+					return undefined;
+				return { path, modified: entry.mtimeMs };
 			}),
 	);
-	return locations.sort((a, b) => b.modified - a.modified || a.path.localeCompare(b.path));
+	return locations
+		.filter((item): item is SessionLocation => item !== undefined)
+		.sort((a, b) => b.modified - a.modified || a.path.localeCompare(b.path));
 }
 export async function newSessionFile(
 	home: string,

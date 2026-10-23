@@ -82,3 +82,14 @@ Check literal results, persisted state or rendered output. Assertions about mock
 Line and branch coverage identify untested code. Neither metric proves complete behavior or the absence of defects. Live provider and OAuth acceptance requires separate credentials and explicit runs. Native operating-system behavior requires a runner for each target. Remote SSH connectivity requires an actual remote host. Visual terminal acceptance still requires checking real terminal applications.
 
 External compatibility suites can run separately. They supplement the local suite and are not a dependency of these commands.
+
+## Update dependencies
+
+Dependency versions are pinned in workspace manifests and lockfiles. Check published npm versions with:
+
+```sh
+npm outdated --workspaces --include-workspace-root
+npm outdated --prefix test/workers
+```
+
+Update the relevant manifest pins and regenerate each affected lockfile. Check provider SDK protocol changes before accepting a major version. Run `npm run verify` after updating. Rust dependencies are pinned separately in `packages/env/daemon/Cargo.toml`; update its lockfile before building the native daemon.

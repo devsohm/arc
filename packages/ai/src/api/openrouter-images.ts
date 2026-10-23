@@ -80,6 +80,7 @@ export const generateImages: ImagesFunction<ImagesOptions> = async (model, conte
 					cacheRead: (model.cost.cacheRead / 1_000_000) * cacheRead,
 					cacheWrite: (model.cost.cacheWrite / 1_000_000) * cacheWrite,
 					total: 0,
+					totalFromProvider: false,
 				},
 			};
 			usage.cost.total = usage.cost.input + usage.cost.output + usage.cost.cacheRead + usage.cost.cacheWrite;

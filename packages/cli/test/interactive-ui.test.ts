@@ -47,7 +47,7 @@ async function start(extensions: readonly ApplicationExtension[] = [], fullscree
 		terminal.dispose();
 		await rm(directory, { recursive: true, force: true });
 	});
-	await vi.waitFor(async () => expect((await terminal.screen()).join("\n")).toContain("Enter send"));
+	await vi.waitFor(async () => expect((await terminal.screen()).join("\n")).toContain("/ commands"));
 	return { app, terminal, controller, result, writes, provider };
 }
 
@@ -65,7 +65,7 @@ test("settings toggles Code Mode immediately without enabling MCP", async () => 
 	expect((await app.snapshot()).agent.tools.map((tool) => tool.name)).toContain("codemode");
 	expect((await app.command("/mcp")).message).toContain("No MCP servers connected.");
 	terminal.input("\x1b");
-	await vi.waitFor(async () => expect((await terminal.screen()).join("\n")).toContain("Enter send"));
+	await vi.waitFor(async () => expect((await terminal.screen()).join("\n")).toContain("/ commands"));
 });
 
 test("assistant Mermaid and LaTeX reach the actual terminal renderer", async () => {
@@ -96,7 +96,7 @@ test("automatic compaction can be disabled and enabled from settings and is save
 	await vi.waitFor(async () => expect((await app.snapshot()).settings?.compaction?.enabled).toBe(true));
 	expect(JSON.parse(await readFile(join(app.home, "settings.json"), "utf8")).compaction.enabled).toBe(true);
 	terminal.input("\x1b");
-	await vi.waitFor(async () => expect((await terminal.screen()).join("\n")).toContain("Enter send"));
+	await vi.waitFor(async () => expect((await terminal.screen()).join("\n")).toContain("/ commands"));
 });
 
 test("retained extension contexts follow current state and terminal attachment", async () => {
@@ -168,6 +168,9 @@ test("terminal bang commands execute and render without a model request", async 
 	expect(messages).not.toContain("private-shell");
 	terminal.input("!printf shell-running; sleep 30");
 	terminal.input("\r");
+	await vi.waitFor(async () =>
+		expect((await app.snapshot()).userBash?.some((entry) => entry.output.includes("shell-running"))).toBe(true),
+	);
 	await vi.waitFor(async () => expect((await terminal.screen()).join("\n")).toContain("[running]"));
 	terminal.input("\x03");
 	await vi.waitFor(async () => expect((await terminal.screen()).join("\n")).toContain("[cancelled]"));
@@ -321,7 +324,7 @@ test("autocomplete layers retain triggers, survive editor and base changes, and 
 	removeSecond();
 	app.ui.setEditorText("");
 	terminal.input("/hel");
-	await vi.waitFor(async () => expect((await terminal.screen()).join("\n")).toContain("/help"));
+	await vi.waitFor(async () => expect((await terminal.screen()).join("\n")).toContain("List commands"));
 	controller.abort();
 	await result;
 	expect(removeSecond).not.toThrow();
@@ -856,7 +859,7 @@ test("branch selection switches conversations and Escape leaves selection unchan
 	terminal.input("\r");
 	await vi.waitFor(async () => expect((await terminal.screen()).join("\n")).toContain("Session Tree"));
 	terminal.input("\x1b");
-	await vi.waitFor(async () => expect((await terminal.screen()).join("\n")).toContain("Enter send"));
+	await vi.waitFor(async () => expect((await terminal.screen()).join("\n")).toContain("/ commands"));
 	expect(app.conversation.id).toBe(first);
 	expect(first).not.toBe(second);
 });
@@ -961,7 +964,7 @@ test("cancelling a pending login aborts provider work and restores the editor", 
 	expect(open).toHaveBeenCalledWith("https://example.invalid/login");
 	terminal.input("\x1b");
 	await vi.waitFor(() => expect(aborted).toBe(true));
-	await vi.waitFor(async () => expect((await terminal.screen()).join("\n")).toContain("Enter send"));
+	await vi.waitFor(async () => expect((await terminal.screen()).join("\n")).toContain("/ commands"));
 	await app.command("/new");
 	expect((await app.snapshot()).busy).toBe(false);
 });

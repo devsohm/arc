@@ -65,7 +65,7 @@ export default {
 
 Durable contributions remain tools, task definitions, hooks, prompt sections and wrappers. The application checks command names before installation. Extension commands can replace built-ins except abort and quit. Commands with the same name in different extensions receive numbered invocation aliases. Provider contributions require a mutable model collection. Closing or removing the owning extension restores a previous provider when that registration is still owned by the application.
 
-The Node loader uses esbuild and native ESM imports. Calling `/reload` reloads resources and file definitions. Replacement is atomic for each registry installation; loading several files is not one atomic transaction. Import/validation failures preserve the previous definition for that file. Subscriber exceptions after publication are reported but do not reverse publication.
+The loader uses native Node ESM imports and TypeScript stripping. It accepts `.ts`, `.mts`, `.mjs`, and `.js`, without a runtime transpiler. Calling `/reload` reloads resources and file definitions. Replacement is atomic for each registry installation; loading several files is not one atomic transaction. Import/validation failures preserve the previous definition for that file. Subscriber exceptions after publication are reported but do not reverse publication.
 
 Relative ESM imports reload with their file generation. Bare package imports retain Node's cache. CommonJS extension replacement is unsupported. Node retains imported ESM generations. Keep extension modules declarative and own resources in tasks or explicit host lifecycles. This loader cannot unload arbitrary imported code or clean up timers created at module scope.
 

@@ -149,3 +149,13 @@ The package root exposes isolated model collections, public types, authenticatio
 The `telemetry` option accepts a `TelemetrySpan`. The model registry emits one logical request span around authentication and dispatch, or one poll span around a deferred fetch. Spans settle when the forwarded source result is observed.
 
 `AI_TELEMETRY_SCHEMA` defines `arc.ai.request`, `arc.ai.poll`, first-chunk and block events, and request-duration, first-chunk-duration, token and cost metrics. Block events contain lengths and tool names without inspecting arguments. Histogram measurements carry the request span as an exemplar. Instruments are cached by metrics-adapter identity. Pending and deferred polls emit durations but no usage counters. Error diagnostics are capped at 500 characters; cancellation remains `ok`.
+
+## Reported billing totals
+
+`Usage.cost.totalFromProvider` is true when the response supplies complete valid billing data. Otherwise, the total uses catalog rates. OpenRouter BYOK responses include both the OpenRouter charge and the upstream inference charge. The input, output, cache-read, and cache-write fields remain catalog estimates, so their sum can differ from a provider-reported total. Calling `calculateCost()` resets `totalFromProvider` to false.
+
+## SDK protocol compatibility
+
+The Anthropic adapter pins `anthropic-version` to `2023-06-01` unless caller headers override it. Updating the SDK does not silently change the request protocol. Compatible endpoints can still receive `temperature` when enabled by model compatibility settings and not suppressed by thinking controls.
+
+Google's `CONTINUATION` finish reason maps to `length`. The partial answer and raw stop reason are retained. This mapping does not automatically submit a continuation request.

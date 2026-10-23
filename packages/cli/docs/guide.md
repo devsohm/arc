@@ -26,7 +26,7 @@ The local tools are `read`, `write`, `edit` and `bash`. `/tools` lists or select
 
 Code Mode executes JavaScript through explicit host functions and Durable's nested tool calls. MCP connects configured external servers and exposes their tools. These are separate features. Configuring one does not configure the other. `/mcp` manages configured servers; its HTTP login action opens browser OAuth. `/mcp logout <name>` removes saved MCP OAuth credentials.
 
-The terminal shows streaming messages, thinking and live tool progress. Ctrl+T toggles thinking, and Ctrl+O toggles expanded tool output. `/hotkeys` lists active bindings; personal overrides live in `~/.arc/keybindings.json`. In fullscreen mode, expanding thinking or tools keeps the current viewport position. Scrolling to the end or submitting input resumes following new output. In scrollback mode, the terminal controls its native scrollback position.
+The terminal shows streaming messages, thinking and live tool progress. Ctrl+T toggles thinking, and Ctrl+O toggles expanded tool output. `/hotkeys` lists active bindings; personal overrides live in `~/.arc/keybindings.json`. In fullscreen mode, expanding thinking or tools keeps the current viewport position. Scrolling to the end or submitting input resumes following new output. In scrollback mode, the terminal controls its native scrollback position. Startup help is compact; expanding tools also shows the longer shortcut guide. The editor contains your input, without a persistent shortcut banner.
 
 Markdown includes syntax-highlighted code, tables, Mermaid and supported math notation. Terminal capability affects images, keyboard input and clipboard support. This is not a browser or a full TeX typesetter. See [themes and Markdown](themes.md).
 
@@ -35,6 +35,22 @@ Markdown includes syntax-highlighted code, tables, Mermaid and supported math no
 SQLite is the default backend. Active runtime state uses memory. `MemoryStorage` is available for temporary sessions; it is not a separate persistent memory service. JSONL is available for sessions you want to inspect as text. See [session storage](storage.md) for commands, file layouts and backup limits.
 
 To reopen the latest session at startup, use `arc --continue`. During a run, use `/resume` to choose a saved session, `/new` to start another, `/fork` to branch, and `/tree` to navigate history. `/clone` copies a complete file-backed session. `/name` labels a session.
+
+The `/resume` picker searches names, paths and project folders. Space-separated words must all match; quotes group a phrase, and `re:` starts a regular expression. Its default controls are:
+
+| Key | Action |
+| --- | --- |
+| Tab | Switch between the current project and all projects |
+| Ctrl+S | Sort by recent activity or name |
+| Ctrl+N | Show named sessions only, or all sessions |
+| Ctrl+P | Show or hide file paths |
+| Ctrl+R | Rename the selected session |
+| Ctrl+D | Ask to permanently delete the selected session |
+| Ctrl+Backspace | Ask to delete when the search field is empty |
+| Enter | Open a session, save a name or confirm deletion |
+| Escape | Cancel the current action; from the list, close the picker |
+
+You cannot delete the active session or modify a session locked by another process. Deletion removes the session and its SQLite sidecars or JSONL directory permanently. It does not move files to the desktop trash. The picker reads inactive session metadata through the storage backend; opening JSONL can recover an incomplete trailing journal record. Text and RPC hosts retain the basic list/open interaction.
 
 `/compact` summarizes older model context. `/tasks` shows durable task state. `/abort` cancels current work. Automatic compaction is configurable in `/settings`.
 
@@ -50,7 +66,7 @@ Project trust controls project settings and discovered project skills, prompts, 
 
 An application extension builds on Durable's tools, task hooks, wrappers and prompt sections. It can also register application commands, flags, shortcuts, providers, virtual models, message/tool renderers and supported UI components.
 
-Trusted ESM extension files compile through esbuild. `/reload` reloads resources and extension generations. Activation owns cleanup. Stale extension contexts cannot keep registering features after unload. Extensions have host permissions; module loading is not an operating-system sandbox. See [extension APIs](extensions.md).
+Trusted ESM extension files use Node's native loading and TypeScript stripping. TSX and TypeScript syntax that requires code generation must be compiled to JavaScript first. `/reload` reloads resources and extension generations. Activation owns cleanup. Stale extension contexts cannot keep registering features after unload. Extensions have host permissions; module loading is not an operating-system sandbox. See [extension APIs](extensions.md).
 
 ## Use the libraries independently
 

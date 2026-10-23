@@ -1,114 +1,22 @@
 import type { Context } from "../shared/context/index.ts";
 import type { JsonValue } from "../shared/json.ts";
-import type {
-	ReplicatedStateSource,
-	ReplicatedStateSourceAttachment,
-	ReplicatedStateSourceFrame,
-} from "../shared/state/replicated-state.ts";
 import { withoutAbortSignal } from "../shared/context/index.ts";
 import type { Op } from "../shared/state/delta/index.ts";
 import { errorMessage } from "../errors.ts";
 import type { JsonObject, WatchEnd, WatchHandle } from "../types.ts";
 export type ObservedDocumentValue = Readonly<JsonObject> | null;
-export const RETIREMENT_OPERATIONS: readonly Op[] = [["r", null]];
 
-class SourceAttachment<Value> implements ReplicatedStateSourceAttachment<Value> {
-	readonly snapshot: { readonly value: Value; readonly cursor: number };
-	#release: (() => void) | undefined;
-	readonly #queue: ReplicatedStateSourceFrame<Value>[] = [];
-	#listener: ((frame: ReplicatedStateSourceFrame<Value>) => void) | undefined;
-	#active = false;
-	#disposed = false;
-	#scheduled = false;
-	#draining = false;
-	constructor(value: Value, cursor: number, release: () => void) {
-		this.snapshot = { value, cursor };
-		this.#release = release;
-	}
-	activate(listener: (frame: ReplicatedStateSourceFrame<Value>) => void): void {
-		if (this.#active) throw new Error("State attachment is already active");
-		if (this.#disposed) throw new Error("State attachment is disposed");
-		this.#active = true;
-		this.#listener = listener;
-		this.#drain();
-	}
-	publish(frame: ReplicatedStateSourceFrame<Value>): void {
-		if (this.#disposed) return;
-		this.#queue.push(frame);
-		if (!this.#active || this.#scheduled || this.#draining) return;
-		this.#scheduled = true;
-		queueMicrotask(() => {
-			this.#scheduled = false;
-			try {
-				this.#drain();
-			} catch {
-				this.dispose();
-			}
-		});
-	}
-	#drain(): void {
-		if (this.#disposed || this.#draining || !this.#listener) return;
-		this.#draining = true;
-		try {
-			while (!this.#disposed && this.#queue.length) this.#listener(this.#queue.shift()!);
-		} finally {
-			this.#draining = false;
-		}
-	}
-	dispose(): void {
-		if (this.#disposed) return;
-		this.#disposed = true;
-		this.#queue.length = 0;
-		this.#listener = undefined;
-		const release = this.#release;
-		this.#release = undefined;
-		release?.();
-	}
-}
-export class CommittedStateSource<Value = ObservedDocumentValue> implements ReplicatedStateSource<Value> {
-	readonly #attachments = new Set<SourceAttachment<Value>>();
-	#state: { value: Value; cursor: number; retired: boolean } | undefined;
-	#release: (() => void) | undefined;
-	constructor(value: Value, release: () => void) {
-		this.#state = { value, cursor: 0, retired: false };
-		this.#release = release;
-	}
-	attach(): ReplicatedStateSourceAttachment<Value> {
-		if (!this.#state) throw new Error("State source is closed");
-		const attachment = new SourceAttachment(this.#state.value, this.#state.cursor, () => {
-			this.#attachments.delete(attachment);
-			if (!this.#attachments.size) this.#dispose();
-		});
-		this.#attachments.add(attachment);
-		return attachment;
-	}
-	advance(value: Value, ops: readonly Op[], context: Context): void {
-		const state = this.#state;
-		if (!state || state.retired) return;
-		state.value = value;
-		state.retired = value === null;
-		const frame = { value, ops, context, cursor: ++state.cursor };
-		for (const attachment of [...this.#attachments]) attachment.publish(frame);
-	}
-	closeSession(): void {
-		for (const attachment of [...this.#attachments]) attachment.dispose();
-		this.#dispose();
-	}
-	#dispose(): void {
-		if (!this.#state) return;
-		this.#state = undefined;
-		const release = this.#release;
-		this.#release = undefined;
-		release?.();
-	}
-}
-
-type WatchFrame<Value> = { readonly value: Value; readonly ops: readonly Op[]; readonly context: Context };
+type WatchFrame<Value> = {
+	readonly value: Value;
+	readonly ops: readonly Op[];
+	readonly context: Context;
+	readonly retires?: true;
+};
 export class CommittedWatch<Value = ObservedDocumentValue> implements WatchHandle<Value> {
 	readonly #end = Promise.withResolvers<WatchEnd>();
-	readonly #detach: () => void;
-	readonly #report: (error: unknown) => void;
-	readonly #replacement: (() => Value) | undefined;
+	#detach: (() => void) | undefined;
+	#report: ((error: unknown) => void) | undefined;
+	#replacement: (() => Value) | undefined;
 	readonly #queue: WatchFrame<Value>[] = [];
 	#value: Value;
 	#listener: ((value: Value, ops: readonly Op[], context: Context) => Promise<void>) | undefined;
@@ -152,12 +60,11 @@ export class CommittedWatch<Value = ObservedDocumentValue> implements WatchHandl
 		signal.addEventListener("abort", callback, { once: true });
 		if (signal.aborted) callback();
 	}
-	closeSession(failure?: { readonly error: unknown }): void {
-		this.#finish(failure ? { reason: "session_failed", error: failure.error } : { reason: "session_closed" });
+	end(failure?: { readonly error: unknown }): void {
+		this.#finish(failure ? { reason: "failed", error: failure.error } : { reason: "ended" });
 	}
 	advance(value: Value, ops: readonly Op[], context: Context): void {
 		if (this.#terminal || this.#retired) return;
-		this.#retired = value === null;
 		if (this.#queue.length >= 100) {
 			this.#queue.length = 0;
 			const replacement = this.#replacement?.() ?? value;
@@ -165,6 +72,14 @@ export class CommittedWatch<Value = ObservedDocumentValue> implements WatchHandl
 		} else this.#queue.push({ value, ops, context });
 		if (this.#started) this.#schedule();
 	}
+	retire(this: CommittedWatch<ObservedDocumentValue>, context: Context): void {
+		if (this.#terminal || this.#retired) return;
+		this.#retired = true;
+		if (this.#queue.length >= 100) this.#queue.length = 0;
+		this.#queue.push({ value: null, ops: [["r", null]], context, retires: true });
+		if (this.#started) this.#schedule();
+	}
+
 	#schedule(): void {
 		if (this.#terminal || this.#running || this.#scheduled) return;
 		this.#scheduled = true;
@@ -184,7 +99,7 @@ export class CommittedWatch<Value = ObservedDocumentValue> implements WatchHandl
 					await this.#listener(frame.value, frame.ops, withoutAbortSignal(frame.context));
 				} catch (error) {
 					if (!this.#terminal) {
-						this.#report(error);
+						this.#report?.(error);
 						this.#finish({
 							reason: "listener_error",
 							error: error instanceof Error ? error : new Error(errorMessage(error)),
@@ -192,7 +107,7 @@ export class CommittedWatch<Value = ObservedDocumentValue> implements WatchHandl
 					}
 					break;
 				}
-				if (frame.value === null) this.#finish({ reason: "retired" });
+				if (frame.retires) this.#finish({ reason: "retired" });
 			}
 		} finally {
 			this.#running = false;
@@ -202,9 +117,15 @@ export class CommittedWatch<Value = ObservedDocumentValue> implements WatchHandl
 	#finish(end: WatchEnd): void {
 		if (this.#terminal) return;
 		this.#terminal = true;
-		this.#detach();
+		const detach = this.#detach;
+		this.#detach = undefined;
+		this.#report = undefined;
+		this.#replacement = undefined;
+		this.#listener = undefined;
 		this.#queue.length = 0;
 		if (this.#cancel) this.#cancel.signal.removeEventListener("abort", this.#cancel.callback);
+		this.#cancel = undefined;
+		detach?.();
 		this.#end.resolve(end);
 	}
 }

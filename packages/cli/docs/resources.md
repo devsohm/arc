@@ -57,7 +57,7 @@ Unknown placeholders remain literal. Missing positional arguments expand to empt
 
 ## Extension entries
 
-Discovery returns paths without importing or executing modules. Direct `.ts`, `.mts`, `.tsx`, `.mjs`, and `.js` files qualify. An immediate child directory can supply an `index` file with one of those suffixes, in the order shown. Helper modules below that directory do not become separate entries.
+Discovery returns paths without importing or executing modules. Direct `.ts`, `.mts`, `.mjs`, and `.js` files qualify. TSX files must be compiled to JavaScript before discovery. An immediate child directory can supply an `index` file with one of those suffixes, in the order shown. Helper modules below that directory do not become separate entries.
 
 Declaration files, hidden entries, `node_modules`, and CommonJS entry files are excluded. Personal entries load before project entries. Each location uses lexical entry order, and physical files are deduplicated across locations. The application passes these files to Durable's extension loader.
 

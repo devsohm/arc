@@ -1,3 +1,5 @@
+import { SessionSelector } from "./session-selector.ts";
+import type { SessionPickerRequest } from "../../core/sessions/session-actions.ts";
 import { plainText } from "../../core/ui/text.ts";
 import {
 	Container,
@@ -638,6 +640,20 @@ export class InteractiveUI implements ApplicationUI {
 			(seconds) => heading.setText(this.#editorTheme.selectList.selectedText(`${plainText(title)} (${seconds}s)`)),
 		);
 	}
+	sessions(request: SessionPickerRequest): Promise<string | undefined> {
+		return this.#open<string | undefined>(
+			(done) =>
+				new SessionSelector(
+					request,
+					done,
+					() => this.#tui.requestRender(),
+					this.#editorTheme.selectList,
+					Math.max(4, Math.floor(this.#tui.terminal.rows / 3)),
+				),
+			() => undefined,
+		);
+	}
+
 	tree(
 		items: readonly NavigationItem[],
 		options: { initialValue?: string; filter: TreeFilter },
@@ -711,7 +727,8 @@ export class InteractiveUI implements ApplicationUI {
 	}
 	escapeDialog(data: string): void {
 		const view = this.#dialogs.at(-1)?.view;
-		if (view?.kind === "ready" && view.component instanceof TreeSelector) view.component.handleInput(data);
+		if (view?.kind === "ready" && (view.component instanceof TreeSelector || view.component instanceof SessionSelector))
+			view.component.handleInput(data);
 		else this.cancelDialog();
 		this.#tui.requestRender();
 	}

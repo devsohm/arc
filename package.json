@@ -31,14 +31,14 @@
 		"@types/node": "22.19.19",
 		"@types/proper-lockfile": "4.1.4",
 		"@types/ws": "8.18.2",
-		"@vitest/coverage-v8": "4.1.11",
+		"@vitest/coverage-v8": "4.1.12",
 		"@xterm/headless": "5.5.0",
-		"chalk": "6.0.0",
+		"chalk": "6.0.1",
 		"esbuild": "0.28.2",
 		"fake-indexeddb": "6.2.6",
 		"miniflare": "4.20260730.0",
 		"typescript": "7.0.2",
-		"vitest": "4.1.11",
+		"vitest": "4.1.12",
 		"ws": "8.21.0"
 	},
 	"overrides": {

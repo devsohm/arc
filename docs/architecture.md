@@ -25,7 +25,7 @@ There is no second application-owned generation loop or recovery journal. UI lay
 
 Durable extensions define tools, tasks, documents, hooks, and prompt sections. Application extensions add commands, provider registrations, resource handling, message renderers, UI contributions, and application lifecycle callbacks.
 
-Trusted extension files compile through esbuild. The loader manages file generations and the application manages activation cleanup. Reloading a module is not remote object routing or coordinated process replacement.
+Trusted extension files load through Node's native ESM loader and built-in TypeScript stripping. The loader manages file generations and the application manages activation cleanup. Reloading a module is not remote object routing or coordinated process replacement.
 
 Extensions run trusted host code. A child process or a TypeScript module is not an operating-system sandbox.
 

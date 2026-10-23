@@ -59,14 +59,14 @@ test("terminal login publishes models, waits for model selection, filters search
 	};
 	const text = async () => (await terminal.screen()).join("\n");
 	try {
-		await vi.waitFor(async () => expect(await text()).toContain("Enter send"));
+		await vi.waitFor(async () => expect(await text()).toContain("/ commands"));
 		expect((await app.snapshot()).agent.model).toBeUndefined();
 		send("/model");
 		await vi.waitFor(async () => expect(await text()).toContain("Use /login"));
 		send("/login faux");
 		await vi.waitFor(async () => expect(await text()).toContain("Fixture key"));
 		terminal.input("\x1b");
-		await vi.waitFor(async () => expect(await text()).toContain("Enter send"));
+		await vi.waitFor(async () => expect(await text()).toContain("/ commands"));
 		expect(await text()).not.toContain("Login cancelled");
 		expect(await credentials.list()).toEqual([]);
 		expect((await app.snapshot()).agent.model).toBeUndefined();

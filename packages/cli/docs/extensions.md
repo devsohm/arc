@@ -1,6 +1,6 @@
 # Application extensions
 
-An application extension is a Durable extension with optional commands, providers, lifecycle callbacks and tool renderers. Export it as the default value of a trusted ESM file. The application loads TypeScript through esbuild. Durable still owns tools, tasks, hooks, prompt sections, storage and recovery.
+An application extension is a Durable extension with optional commands, providers, lifecycle callbacks and tool renderers. Export it as the default value of a trusted ESM file. The application loads supported TypeScript through Node's built-in stripping. Use `.ts`, `.mts`, `.mjs`, or `.js`. Compile TSX and non-erasable TypeScript syntax to JavaScript first. Durable still owns tools, tasks, hooks, prompt sections, storage and recovery.
 
 ## Own application resources
 

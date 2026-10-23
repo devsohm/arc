@@ -1,4 +1,3 @@
-import type { AttachedReplicatedState } from "../shared/state/replicated-state.ts";
 import type { Context } from "../shared/context/index.ts";
 import type { JsonValue } from "../shared/json.ts";
 import { withAbortSignal, withoutAbortSignal } from "../shared/context/index.ts";
@@ -41,7 +40,7 @@ import { ProviderDoc } from "./provider.ts";
 import { BUILTIN_TASKS } from "./registry.ts";
 import { type InvocationBinding, TaskScheduler } from "./scheduler.ts";
 import { Submissions } from "./submissions.ts";
-import { type TaskGraph, TaskGraphView, type TaskGraphWatch } from "./task-graph.ts";
+import { TaskGraphView, type TaskGraphWatch } from "./task-graph.ts";
 import { DURABLE_TELEMETRY_SCHEMA } from "./telemetry.ts";
 import type {
 	Agent,
@@ -67,7 +66,7 @@ import type {
 } from "./types.ts";
 import { addUsageState, UsageDoc, type UsageState } from "./usage.ts";
 import { scanAll } from "./util.ts";
-import { type ConversationView, ConversationViews } from "./view.ts";
+import { ConversationViews } from "./view.ts";
 
 type CreateTarget =
 	| { kind: "root" }
@@ -101,7 +100,7 @@ class ConversationImpl<T extends ToolRegistration> implements Conversation {
 	submit(draft: SubmissionDraft, context: Context): Promise<Submission> {
 		return this.#host.submissions.submit(this.id, draft, context);
 	}
-	compact(instructions: string | undefined, context: Context): Promise<TaskId<CompactionResult>> {
+	async compact(instructions: string | undefined, context: Context): Promise<TaskId<CompactionResult>> {
 		this.#host.tasks.resume();
 		return this.#host.harness.commitWith(
 			(tx) =>
@@ -148,16 +147,13 @@ class ConversationImpl<T extends ToolRegistration> implements Conversation {
 	fork(at: EntryId, options: ConversationCreateOptions, context: Context): Promise<Conversation> {
 		return this.#host.create({ kind: "fork", parentId: this.id, at, ownership: options.ownership }, options, context);
 	}
-	abort(context: Context, options?: ConversationAbortOptions): Promise<void> {
+	async abort(context: Context, options?: ConversationAbortOptions): Promise<void> {
 		this.#host.tasks.resume();
 		return this.#host.tasks.abortConversation(this.id, options?.background === true, context);
 	}
-	waitForIdle(context: Context): Promise<void> {
+	async waitForIdle(context: Context): Promise<void> {
 		this.#host.tasks.resume();
 		return this.#host.tasks.waitForIdle(this.id, context);
-	}
-	viewState(context: Context): Promise<AttachedReplicatedState<ConversationView>> {
-		return this.#host.views.state(this.id, context);
 	}
 	watch(context: Context): Promise<ConversationWatch> {
 		return this.#host.views.watch(this.id, context);
@@ -186,13 +182,14 @@ class HarnessImpl<T extends ToolRegistration> extends SessionImpl implements Har
 		const report = safeReport(options.onReport, options.telemetry ?? NOOP_TELEMETRY_CONTEXT),
 			now = safeNow(options.now, report),
 			hostSettings = settingsGetter(options.settings);
-		super(raw, now, () => hostSettings()?.documentRetentionMs, options.setTimer);
+		super(raw, now, () => hostSettings()?.documentRetentionMs, options.setTimer, options.readOnly);
 		const storage = this.storage,
 			settings = () => resolveSettings(hostSettings());
 		this.#options = options;
 		this.#settings = hostSettings;
 		this.#report = report;
 		this.#tasks = new TaskScheduler({
+			readOnly: options.readOnly,
 			telemetry: options.telemetry,
 			session: this,
 			storage,
@@ -293,11 +290,11 @@ class HarnessImpl<T extends ToolRegistration> extends SessionImpl implements Har
 		this.assertUsable();
 		return this.#tasks.retry(id, context);
 	}
-	waitForTask<R>(id: TaskId<R>, context: Context): Promise<SettledTask<R>> {
+	async waitForTask<R>(id: TaskId<R>, context: Context): Promise<SettledTask<R>> {
 		this.#tasks.resume();
 		return this.#tasks.waitForTask(id, context) as Promise<SettledTask<R>>;
 	}
-	waitForIdle(context: Context): Promise<void> {
+	async waitForIdle(context: Context): Promise<void> {
 		this.#tasks.resume();
 		return this.#tasks.waitForIdle(undefined, context);
 	}
@@ -311,9 +308,6 @@ class HarnessImpl<T extends ToolRegistration> extends SessionImpl implements Har
 			if (state !== undefined) addUsageState(total, state);
 		}
 		return total;
-	}
-	taskGraph(context: Context): Promise<AttachedReplicatedState<TaskGraph>> {
-		return this.#graph.state(context);
 	}
 	watchTaskGraph(context: Context): Promise<TaskGraphWatch> {
 		return this.#graph.watch(context);

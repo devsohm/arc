@@ -1,5 +1,5 @@
 export { MemoryStorage } from "./storage/memory.ts";
-export { StorageRequestError } from "./errors.ts";
+export { ReadOnlySession, StorageRequestError } from "./errors.ts";
 export * from "./types.ts";
 export { defineDoc, defineDocFamily } from "./documents.ts";
 export {

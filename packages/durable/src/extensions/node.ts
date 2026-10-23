@@ -1,10 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
 import { realpath } from "node:fs/promises";
 import { registerHooks } from "node:module";
 import { extname, isAbsolute } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { transformSync } from "esbuild";
 import type { Extension, Registry } from "../harness/types.ts";
 
 const generationKey = "arc-extension";
@@ -41,17 +39,10 @@ function register(): void {
 			if (!url.startsWith("file:") || !new URL(url).searchParams.has(generationKey)) return nextLoad(url, context);
 			const filename = fileURLToPath(url);
 			const extension = extname(filename);
-			if ([".ts", ".mts", ".tsx"].includes(extension)) {
-				const result = transformSync(readFileSync(filename, "utf8"), {
-					loader: extension === ".tsx" ? "tsx" : "ts",
-					format: "esm",
-					target: "node22",
-					sourcemap: "inline",
-					sourcefile: filename,
-				});
-				return { format: "module", source: result.code, shortCircuit: true };
-			}
-			const loaded = nextLoad(url, context);
+			const loaded = nextLoad(url, {
+				...context,
+				...([".ts", ".mts"].includes(extension) ? { format: "module-typescript" } : {}),
+			});
 			if (loaded.format === "commonjs" || loaded.format === "commonjs-typescript")
 				throw new TypeError(`Extension modules must use ESM: ${filename}`);
 			return loaded;

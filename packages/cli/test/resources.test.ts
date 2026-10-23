@@ -98,26 +98,19 @@ test("extension discovery finds supported modules and directory entries without 
 	);
 	const directory = join(f.cwd, ".arc", "extensions");
 	const files = [];
-	for (const name of ["a.ts", "b.mts", "c.tsx", "d.mjs", "e.js"])
+	for (const name of ["a.ts", "b.mts", "d.mjs", "e.js"])
 		files.push(await put(join(directory, name), "export default { name: 'example' }"));
 	const bundle = await put(join(directory, "bundle", "index.mts"), "export default { name: 'bundle' }");
 	await put(join(directory, "bundle", "helper.ts"), "export const helper = true");
 	await put(join(directory, "types.d.ts"), "declare const ignored: string");
 	await put(join(directory, "types.d.mts"), "declare const ignored: string");
 	await put(join(directory, "commonjs.cjs"), "module.exports = {}");
+	await put(join(directory, "unsupported.tsx"), "export default <span />");
 	await put(join(directory, "node_modules", "index.js"), "throw new Error('dependency')");
 	await put(join(f.root, "project", ".arc", "extensions", "ancestor.ts"), "throw new Error('ancestor')");
 	await symlink(global, join(directory, "z-alias.mjs"));
 	await symlink(join(directory, "missing.ts"), join(directory, "broken.ts"));
-	expect((await loadResources(f)).extensionFiles).toEqual([
-		global,
-		files[0],
-		files[1],
-		bundle,
-		files[2],
-		files[3],
-		files[4],
-	]);
+	expect((await loadResources(f)).extensionFiles).toEqual([global, files[0], files[1], bundle, files[2], files[3]]);
 });
 
 test.each([

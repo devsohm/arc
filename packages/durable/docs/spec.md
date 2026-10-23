@@ -57,13 +57,13 @@ Retiring an incarnation ends its observations. Recreating the same address creat
 
 ## Observation
 
-`documentState()` returns an attached replicated state for one incarnation. `watchDoc()` returns a watch with an initial value, a `start()` method, a `stop()` method, and a `closed` promise. Neither method creates a missing document.
+`watchDoc()` observes one existing document incarnation. It returns an initial value, `start(listener)`, `stop()`, and a `closed` promise. Retirement delivers a final null value and ends with `retired`.
 
 A watch reports committed values and operations. Its terminal reason distinguishes explicit stop, cancellation, Session close, retirement, listener failure, and Session failure.
 
-`Conversation.viewState()` exposes committed conversation state through its replicated-state API. `Conversation.watch()` supplies asynchronous view delivery. `watchEvents()` converts committed view changes into agent events. Partial output reaches these views through committed live documents.
+`Conversation.watch()` supplies asynchronous delivery of committed conversation state. `watchEvents()` converts committed view changes into agent events. Partial output reaches these views through committed live documents.
 
-`taskGraph()` and `watchTaskGraph()` expose task ownership, waits, running state, and blockers. Inspection describes persisted work without starting its phases.
+`watchTaskGraph()` exposes task ownership, waits, running state, and blockers. Inspection describes persisted work without starting its phases.
 
 ## Durable tasks
 
@@ -146,7 +146,7 @@ Tool search and descriptions use the script's captured tool declarations. Option
 
 ## Storage contract
 
-`Storage.commit(writes, context)` atomically applies one mixed batch and returns its sequence. Writes cover conversations, entries, tasks, submissions, document creation, document copy, document change, and document retirement.
+`Storage.commit(writes, adopt, context)` atomically applies one mixed batch and returns its sequence. Writes cover conversations, entries, tasks, submissions, document creation, document copy, document change, and document retirement.
 
 Exact lookups are keyed. Ordered scans use an opaque cursor and a requested page limit. Entry scans default to descending ID order. Conversation, task, and submission scans default to ascending order. Returned records and documents are detached from storage-owned mutable values.
 
@@ -195,7 +195,7 @@ The package does not supply a terminal UI, a command-line product, credential st
 
 ## Node extension files
 
-The optional `@arc/durable/extensions/node` adapter loads default-exported Extension objects into a supplied registry. Loading and unloading are serialized. Relative ESM modules receive a fresh generation on each load; bare package imports retain Node caching. Compilation and registry validation occur before replacement. Listener errors can occur after publication. The adapter tracks ownership in that case. It does not cancel tasks or unload cached ESM code. See [extension loading](extensions.md).
+The optional `@arc/durable/extensions/node` adapter loads default-exported Extension objects into a supplied registry. Loading and unloading are serialized. Relative ESM modules receive a fresh generation on each load; bare package imports retain Node caching. Native parsing and registry validation occur before replacement. Listener errors can occur after publication. The adapter tracks ownership in that case. It does not cancel tasks or unload cached ESM code. See [extension loading](extensions.md).
 
 ## Browser storage
 
@@ -210,3 +210,9 @@ The database uses schema version 1. Its stores are `meta`, `record_ids`, `conver
 ## Client identity
 
 `Harness.open({ identity })` sets request identity defaults. Harness identity overrides the default Arc attribution field by field. Request identity overrides harness identity. These defaults apply to model factories and model calls from tools, tasks and hooks. Null attribution disables attribution without removing the user agent.
+
+## Read-only access
+
+Open a Harness with `readOnly: true` to inspect existing records without recovering tasks or scheduling work. Writes reject with `ReadOnlySession`. A transaction that writes nothing still succeeds. `resume()` refuses scheduling and `wake()` returns `{ active: false }`. The storage backend can still create its schema while opening; this option does not open the database driver in a physical read-only mode.
+
+The storage commit calls `adopt(seq)` synchronously after the batch becomes durable and before resolving. The callback updates the session's in-memory state. A failed write before durability never calls it. Custom storage backends must implement this callback; it must not throw.

@@ -88,6 +88,15 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 describe("Google adapters", () => {
+	it("reports a continuation token limit without discarding partial output", async () => {
+		sdk.chunks = [{ candidates: [{ content: { parts: [{ text: "partial answer" }] }, finishReason: "CONTINUATION" }] }];
+		const result = await google.stream(model, context, { apiKey: "test" }).result();
+		expect(result).toMatchObject({
+			stopReason: "length",
+			rawStopReason: "CONTINUATION",
+			content: [{ type: "text", text: "partial answer" }],
+		});
+	});
 	it("uses ordinary property assignment for legacy schemas without changing JSON-schema declarations", () => {
 		const parameters = Type.Object(
 			Object.fromEntries([

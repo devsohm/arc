@@ -282,7 +282,14 @@ export interface Usage {
 	cacheWrite1h?: number;
 	reasoning?: number;
 	totalTokens: number;
-	cost: { input: number; output: number; cacheRead: number; cacheWrite: number; total: number };
+	cost: {
+		input: number;
+		output: number;
+		cacheRead: number;
+		cacheWrite: number;
+		total: number;
+		totalFromProvider?: boolean;
+	};
 }
 export type StopReason = "pending" | "stop" | "length" | "toolUse" | "error" | "aborted" | "deferred";
 export type JsonValue = null | boolean | number | string | readonly JsonValue[] | JsonObject;
